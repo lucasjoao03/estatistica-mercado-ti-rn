@@ -1,0 +1,13 @@
+# Arquivos baixados do INEP (muito grandes)
+dados/brutos/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Sistema / editor
+.vscode/
+.DS_Store
+Thumbs.db
