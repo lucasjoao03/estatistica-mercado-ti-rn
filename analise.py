@@ -12,6 +12,7 @@ Perguntas:
 Entrada:  dados/processados/painel_uf_ano.csv
 Saídas:   resultados/ (tabelas .csv, gráficos .png, modelos .txt, relatorio.md)
 """
+import textwrap
 import warnings
 
 import matplotlib
@@ -292,6 +293,154 @@ def grafico_barras_relacao(painel, ano):
     plt.close(fig)
 
 
+def br(v: float, dec: int = 1) -> str:
+    """Número no formato brasileiro (1.234,5)."""
+    return f"{v:,.{dec}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+FONTE = "Fontes: INEP (Censo da Educação Superior), MTE (RAIS), IBGE."
+NOTA_BOX = ("Caixa: Q1 a Q3; linha interna: mediana; bigodes: até 1,5·IQR; "
+            "siglas: outliers pelo critério de Tukey.")
+
+
+def _caixa(ax, valores, pos, largura=0.5):
+    ax.boxplot(valores, positions=[pos], widths=largura, whis=1.5, showfliers=False,
+               patch_artist=True, zorder=2,
+               boxprops={"facecolor": "#f1f0ea", "edgecolor": TINTA_SEC, "linewidth": 1.2},
+               medianprops={"color": TINTA, "linewidth": 2},
+               whiskerprops={"color": TINTA_SEC, "linewidth": 1.2},
+               capprops={"color": TINTA_SEC, "linewidth": 1.2})
+
+
+def _pontos_caixa(ax, s: pd.Series, pos: float, dec: int, rng, rotular_rn=True):
+    """Pontos das UFs sobre o boxplot (jitter leve), RN destacado e outliers rotulados."""
+    m = descritiva.medidas(s)
+    outl = s[(s < m["limite_inferior_tukey"]) | (s > m["limite_superior_tukey"])]
+    jit = pd.Series(rng.uniform(-0.09, 0.09, len(s)), index=s.index)
+    outras = s.drop(FOCO, errors="ignore")
+    ax.scatter(pos + jit[outras.index], outras, s=26, color=COR_OUTRAS,
+               edgecolor="white", linewidth=0.8, zorder=3)
+    if FOCO in s.index:
+        ax.scatter(pos + jit[FOCO], s[FOCO], s=70, color=COR_FOCO,
+                   edgecolor="white", linewidth=1.5, zorder=5)
+        if rotular_rn:
+            ax.annotate(f"{FOCO} {br(s[FOCO], dec)}", (pos + jit[FOCO], s[FOCO]),
+                        xytext=(pos - 0.34, s[FOCO]), textcoords="data", ha="right",
+                        va="center", fontsize=9, color=COR_FOCO, fontweight="bold",
+                        arrowprops={"arrowstyle": "-", "color": COR_FOCO, "linewidth": 1})
+    # Outliers: rótulo à direita; se muito perto do anterior, alterna para a esquerda
+    faixa = s.max() - s.min()
+    ultimo, lado = None, 1
+    for uf, v in outl.sort_values().items():
+        lado = -lado if (ultimo is not None and abs(v - ultimo) < 0.05 * faixa) else 1
+        ax.annotate(uf, (pos + jit[uf], v), xytext=(9 * lado, 0), textcoords="offset points",
+                    ha="left" if lado > 0 else "right", va="center",
+                    fontsize=8.5, color=TINTA)
+        ultimo = v
+    return m
+
+
+def grafico_boxplots(painel, ano):
+    cols = ["concluintes_ti_100k", "vinculos_ti_100k",
+            "concluintes_por_100_vinculos", "salario_medio_ti"]
+    d = descritiva.corte(painel, ano)
+    rng = np.random.default_rng(42)
+    fig, axes = plt.subplots(1, len(cols), figsize=(14, 5.6))
+    for ax, col in zip(axes, cols):
+        dec = 0 if col == "salario_medio_ti" else 1
+        _caixa(ax, d[col].dropna(), 0)
+        m = _pontos_caixa(ax, d[col].dropna(), 0, dec, rng)
+        ax.set_xlim(-0.8, 0.5)
+        ax.set_xticks([])
+        ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(
+            lambda v, _: br(v, 0) if v >= 100 or float(v).is_integer() else br(v, 1)))
+        ax.grid(axis="x", visible=False)
+        ax.set_title(textwrap.fill(ROTULOS[col], 22), loc="left", color=TINTA, fontsize=10.5)
+        ax.text(0, -0.06, f"mediana {br(m['mediana'], dec)}\n{FOCO}: {m[f'faixa_quartil_{FOCO}']}",
+                transform=ax.transAxes, fontsize=8.5, color=TINTA_SEC, va="top")
+    fig.suptitle(f"Distribuição dos indicadores entre as 27 UFs ({ano})",
+                 x=0.01, ha="left", fontweight="bold", color=TINTA)
+    fig.text(0.01, -0.04, f"{NOTA_BOX} Pontos: UFs ({FOCO} em azul).\n{FONTE}",
+             fontsize=8, color=TINTA_SEC)
+    fig.tight_layout()
+    fig.savefig(OUT / f"g6_boxplots_{ano}.png")
+    plt.close(fig)
+
+
+def grafico_boxplot_dois_anos(painel, ano_ini, ano_fim):
+    col = "concluintes_por_100_vinculos"
+    rng = np.random.default_rng(7)
+    fig, ax = plt.subplots(figsize=(7.5, 5.8))
+    pts = {}
+    for pos, a in enumerate((ano_ini, ano_fim)):
+        s = descritiva.corte(painel, a)[col].dropna()
+        _caixa(ax, s, pos)
+        m = _pontos_caixa(ax, s, pos, 1, rng, rotular_rn=False)
+        pts[a] = (pos, s[FOCO], m)
+    (x0, y0, m0), (x1, y1, m1) = pts[ano_ini], pts[ano_fim]
+    ax.plot([x0, x1], [y0, y1], color=COR_FOCO, linestyle="--", linewidth=1.3, zorder=4)
+    for lado, (a, (x, y, m)) in zip((-1, 1), pts.items()):
+        ax.annotate(f"{FOCO} {a}: {br(y)}\n{m[f'faixa_quartil_{FOCO}']}\n"
+                    f"({m[f'posicao_{FOCO}']}º de 27)",
+                    (x, y), xytext=(x + 0.36 * lado, y), textcoords="data",
+                    ha="right" if lado < 0 else "left", va="center", fontsize=9,
+                    color=COR_FOCO, fontweight="bold",
+                    arrowprops={"arrowstyle": "-", "color": COR_FOCO, "linewidth": 1})
+    ax.set_xticks([0, 1], [str(ano_ini), str(ano_fim)])
+    ax.set_xlim(-1.4, 1.9)
+    ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: br(v, 0)))
+    ax.grid(axis="x", visible=False)
+    ax.set_ylabel(ROTULOS[col])
+    ax.set_title(f"Concluintes por 100 empregos de TI: {ano_ini} x {ano_fim}",
+                 loc="left", color=TINTA, pad=24)
+    ax.text(0, 1.02, f"O {FOCO} saiu da metade inferior e passou para acima do 3º quartil",
+            transform=ax.transAxes, fontsize=9, color=TINTA_SEC, va="bottom")
+    ax.text(0, -0.1, f"{NOTA_BOX}\n{FONTE}", transform=ax.transAxes,
+            fontsize=8, color=TINTA_SEC, va="top")
+    fig.savefig(OUT / "g7_boxplot_2015_x_2023.png")
+    plt.close(fig)
+
+
+def grafico_histograma(painel, ano):
+    col = "concluintes_por_100_vinculos"
+    s = descritiva.corte(painel, ano)[col].dropna()
+    m = descritiva.medidas(s)
+    _, _, lim = descritiva.classes_sturges(s)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    freq, _, _ = ax.hist(s, bins=lim, color=COR_OUTRAS, edgecolor="white",
+                         linewidth=1.5, zorder=2)
+    linhas = [("Média", m["media"], COR_NE, "-"),
+              ("Mediana", m["mediana"], COR_BR, "--"),
+              ("Moda (Czuber)", m["moda_czuber"], TINTA, ":")]
+    for nome, v, cor, est in linhas:
+        ax.axvline(v, color=cor, linestyle=est, linewidth=2.2, zorder=3,
+                   label=f"{nome}: {br(v, 2)}")
+    v_rn = s[FOCO]
+    topo = freq.max()
+    ax.annotate(f"{FOCO}: {br(v_rn, 2)}\n{m[f'faixa_quartil_{FOCO}']}",
+                xy=(v_rn, 0), xytext=(v_rn, topo * 0.55), ha="center", fontsize=9,
+                color=COR_FOCO, fontweight="bold",
+                arrowprops={"arrowstyle": "-|>", "color": COR_FOCO, "linewidth": 1.5})
+    ax.scatter([v_rn], [0], marker="o", s=60, color=COR_FOCO, edgecolor="white",
+               linewidth=1.5, zorder=5, clip_on=False)
+    ax.set_xticks(lim, [br(v, 1) for v in lim])
+    ax.set_ylim(0, topo * 1.15)
+    ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
+    ax.grid(axis="x", visible=False)
+    ax.set_xlabel(f"{ROTULOS[col]} (classes de Sturges: k = {len(lim) - 1}, "
+                  f"h = {br(lim[1] - lim[0], 2)})")
+    ax.set_ylabel("Número de UFs")
+    ax.set_title(f"Distribuição de concluintes por 100 empregos de TI ({ano})",
+                 loc="left", color=TINTA, pad=24)
+    ax.text(0, 1.02, f"27 UFs · desvio-padrão {br(m['desvio_padrao'], 2)} · "
+            f"CV {br(m['cv_pct'], 0)}% · assimetria {br(m['assimetria'], 2)}",
+            transform=ax.transAxes, fontsize=9, color=TINTA_SEC, va="bottom")
+    ax.legend(frameon=False, loc="upper right")
+    ax.text(0, -0.17, FONTE, transform=ax.transAxes, fontsize=8, color=TINTA_SEC)
+    fig.savefig(OUT / f"g8_histograma_concluintes_por_100_empregos_{ano}.png")
+    plt.close(fig)
+
+
 # ---------------------------------------------------------------------------
 # 5. Relatório
 # ---------------------------------------------------------------------------
@@ -380,6 +529,9 @@ def main() -> None:
     grafico_dispersao(painel, ano, "pct_fem_concluintes_ti", "pct_fem_vinculos_ti",
                       "g5_dispersao_mulheres.png",
                       "Mulheres na formação x mulheres no mercado de TI", log=False)
+    grafico_boxplots(painel, ano)
+    grafico_boxplot_dois_anos(painel, config.ANO_INICIO, ano)
+    grafico_histograma(painel, ano)
 
     relatorio(painel, ano, desc, corr, mods)
     print(f"OK: resultados em {OUT}")
