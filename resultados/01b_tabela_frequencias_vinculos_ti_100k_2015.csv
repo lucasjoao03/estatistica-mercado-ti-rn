@@ -1,0 +1,7 @@
+classe,limite_inferior,limite_superior,ponto_medio,freq_absoluta,freq_relativa_pct,freq_acumulada,freq_acumulada_pct,ufs
+37.04 ⊢ 164.22,37.04,164.22,100.63,19,70.37,19,70.37,"AC, AL, AM, AP, BA, CE, GO, MA, MS, MT, PA, PB, PE, PI, RN, RO, RR, SE, TO"
+164.22 ⊢ 291.40,164.22,291.4,227.81,4,14.81,23,85.19,"ES, MG, PR, RS"
+291.40 ⊢ 418.58,291.4,418.58,354.99,2,7.41,25,92.59,"RJ, SC"
+418.58 ⊢ 545.76,418.58,545.76,482.17,1,3.7,26,96.3,SP
+545.76 ⊢ 672.94,545.76,672.94,609.35,0,0.0,26,96.3,
+672.94 ⊢ 800.12,672.94,800.12,736.53,1,3.7,27,100.0,DF

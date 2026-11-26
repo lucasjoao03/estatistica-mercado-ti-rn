@@ -42,14 +42,14 @@ Painel: 27 UFs x 9 anos = 243 observações. Corte transversal de referência: 2
 
 ### Indicadores do RN em 2023 (posição entre as 27 UFs)
 
-- Concluintes de TI por 100 mil hab.: 25.43 (13º; média das UFs 30.38)
-- Empregos formais de TI por 100 mil hab.: 114.90 (20º; média das UFs 256.11)
-- Salário médio em TI (R$): 4660.20 (24º; média das UFs 6106.72)
-- Salário TI / salário médio geral: 1.48 (22º; média das UFs 1.72)
-- Concluintes por 100 empregos de TI: 22.13 (4º; média das UFs 14.79)
-- % do emprego formal que é TI: 0.55 (18º; média das UFs 0.88)
-- % mulheres entre concluintes de TI: 13.69 (20º; média das UFs 15.14)
-- % mulheres nos empregos de TI: 17.02 (22º; média das UFs 18.81)
+- Concluintes de TI por 100 mil hab.: 25.43 (13º; mediana das UFs 24.86; entre a mediana e Q3)
+- Empregos formais de TI por 100 mil hab.: 114.90 (20º; mediana das UFs 152.62; entre Q1 e a mediana)
+- Concluintes por 100 empregos de TI: 22.13 (4º; mediana das UFs 14.44; acima de Q3)
+- Salário médio em TI (R$): 4660.20 (24º; mediana das UFs 5678.75; abaixo de Q1)
+- Salário TI / salário médio geral: 1.48 (22º; mediana das UFs 1.68; abaixo de Q1)
+- % do emprego formal que é TI: 0.55 (18º; mediana das UFs 0.67; entre Q1 e a mediana)
+- % mulheres entre concluintes de TI: 13.69 (20º; mediana das UFs 14.63; entre Q1 e a mediana)
+- % mulheres nos empregos de TI: 17.02 (22º; mediana das UFs 19.09; abaixo de Q1)
 
 ## Gráficos
 

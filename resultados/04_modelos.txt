@@ -6,8 +6,8 @@ M1: log(empregos TI/100k) ~ log(concluintes TI/100k) | corte 2023, erros HC1
 Dep. Variable:               log_vinc   R-squared:                       0.842
 Model:                            OLS   Adj. R-squared:                  0.836
 Method:                 Least Squares   F-statistic:                     198.9
-Date:                Tue, 24 Nov 2026   Prob (F-statistic):           2.09e-13
-Time:                        16:52:59   Log-Likelihood:                -6.2145
+Date:                Thu, 26 Nov 2026   Prob (F-statistic):           2.09e-13
+Time:                        15:41:22   Log-Likelihood:                -6.2145
 No. Observations:                  27   AIC:                             16.43
 Df Residuals:                      25   BIC:                             19.02
 Df Model:                           1                                         
@@ -35,8 +35,8 @@ M2: log(empregos TI/100k) ~ log(concluintes t-1) + efeito de ano | painel, erros
 Dep. Variable:               log_vinc   R-squared:                       0.479
 Model:                            OLS   Adj. R-squared:                  0.459
 Method:                 Least Squares   F-statistic:                     28.95
-Date:                Tue, 24 Nov 2026   Prob (F-statistic):           4.70e-11
-Time:                        16:52:59   Log-Likelihood:                -209.19
+Date:                Thu, 26 Nov 2026   Prob (F-statistic):           4.70e-11
+Time:                        15:41:22   Log-Likelihood:                -209.19
 No. Observations:                 216   AIC:                             436.4
 Df Residuals:                     207   BIC:                             466.8
 Df Model:                           8                                         
@@ -71,8 +71,8 @@ M3: log(empregos TI/100k) ~ log(concluintes t-1) + efeitos fixos UF e ano
 Dep. Variable:               log_vinc   R-squared:                       0.852
 Model:                            OLS   Adj. R-squared:                  0.824
 Method:                 Least Squares   F-statistic:                     57.58
-Date:                Tue, 24 Nov 2026   Prob (F-statistic):           1.39e-14
-Time:                        16:52:59   Log-Likelihood:                -73.282
+Date:                Thu, 26 Nov 2026   Prob (F-statistic):           1.39e-14
+Time:                        15:41:22   Log-Likelihood:                -73.282
 No. Observations:                 216   AIC:                             216.6
 Df Residuals:                     181   BIC:                             334.7
 Df Model:                          34                                         
@@ -133,8 +133,8 @@ M4: log(salário médio TI) ~ log(concluintes TI/100k) | corte 2023, erros HC1
 Dep. Variable:                log_sal   R-squared:                       0.707
 Model:                            OLS   Adj. R-squared:                  0.696
 Method:                 Least Squares   F-statistic:                     110.8
-Date:                Tue, 24 Nov 2026   Prob (F-statistic):           1.13e-10
-Time:                        16:52:59   Log-Likelihood:                 18.474
+Date:                Thu, 26 Nov 2026   Prob (F-statistic):           1.13e-10
+Time:                        15:41:22   Log-Likelihood:                 18.474
 No. Observations:                  27   AIC:                            -32.95
 Df Residuals:                      25   BIC:                            -30.36
 Df Model:                           1                                         

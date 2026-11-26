@@ -24,6 +24,8 @@ from scipy import stats
 from statsmodels.stats.diagnostic import het_breuschpagan
 
 import config
+import descritiva
+from descritiva import ROTULOS
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message="covariance of constraints")
@@ -59,17 +61,6 @@ PARES = [
     ("pct_fem_concluintes_ti", "pct_fem_vinculos_ti", "P4 % mulheres formação x mercado"),
 ]
 
-ROTULOS = {
-    "concluintes_ti_100k": "Concluintes de TI por 100 mil hab.",
-    "concluintes_ti_100k_lag1": "Concluintes de TI por 100 mil hab. (ano anterior)",
-    "vinculos_ti_100k": "Empregos formais de TI por 100 mil hab.",
-    "salario_medio_ti": "Salário médio em TI (R$)",
-    "salario_relativo_ti": "Salário TI / salário médio geral",
-    "pct_fem_concluintes_ti": "% mulheres entre concluintes de TI",
-    "pct_fem_vinculos_ti": "% mulheres nos empregos de TI",
-    "concluintes_por_100_vinculos": "Concluintes por 100 empregos de TI",
-    "participacao_ti_emprego": "% do emprego formal que é TI",
-}
 
 
 # ---------------------------------------------------------------------------
@@ -111,22 +102,8 @@ def agregado(painel: pd.DataFrame, ufs=None) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# 1. Estatística descritiva
+# 1. Estatística descritiva -> ver descritiva.py
 # ---------------------------------------------------------------------------
-def descritiva(painel: pd.DataFrame, ano: int) -> pd.DataFrame:
-    cols = ["concluintes_ti_100k", "vinculos_ti_100k", "salario_medio_ti",
-            "salario_relativo_ti", "concluintes_por_100_vinculos",
-            "participacao_ti_emprego", "pct_fem_concluintes_ti", "pct_fem_vinculos_ti"]
-    d = painel[painel["ano"] == ano].set_index("sigla_uf")[cols]
-    tab = d.describe().T[["mean", "std", "min", "50%", "max"]]
-    tab.columns = ["media", "desvio_padrao", "minimo", "mediana", "maximo"]
-    tab["cv_pct"] = 100 * tab["desvio_padrao"] / tab["media"]
-    if FOCO in d.index:
-        tab[f"valor_{FOCO}"] = d.loc[FOCO]
-        tab[f"posicao_{FOCO}_de_27"] = d.rank(ascending=False).loc[FOCO].astype(int)
-    tab.index = [ROTULOS.get(i, i) for i in tab.index]
-    tab.round(2).to_csv(OUT / f"01_descritiva_{ano}.csv")
-    return tab
 
 
 # ---------------------------------------------------------------------------
@@ -368,11 +345,12 @@ def relatorio(painel, ano, desc, corr, mods):
                 "- Resíduo negativo: o estado tem MENOS emprego formal em TI do que o "
                 "esperado para o volume de formação (indício de que o mercado local não "
                 "absorve todos os formados). Positivo: o contrário.", ""]
-        if f"valor_{FOCO}" in desc:
-            txt += [f"### Indicadores do {FOCO} em {ano} (posição entre as 27 UFs)", ""]
-            for i, r in desc.iterrows():
-                txt.append(f"- {i}: {r[f'valor_{FOCO}']:.2f} "
-                           f"({int(r[f'posicao_{FOCO}_de_27'])}º; média das UFs {r['media']:.2f})")
+        d = desc["desc"][ano]
+        txt += [f"### Indicadores do {FOCO} em {ano} (posição entre as 27 UFs)", ""]
+        for _, r in d.iterrows():
+            txt.append(f"- {r['indicador']}: {r[f'valor_{FOCO}']:.2f} "
+                       f"({int(r[f'posicao_{FOCO}_de_27'])}º; mediana das UFs {r['mediana']:.2f}; "
+                       f"{r[f'faixa_quartil_{FOCO}']})")
     txt += ["", "## Gráficos", "",
             "- g1_evolucao_rn_ne_br.png", "- g2_dispersao_formacao_emprego.png",
             "- g3_dispersao_formacao_salario.png", "- g4_concluintes_por_100_empregos.png",
@@ -387,7 +365,7 @@ def main() -> None:
     ano = int(painel["ano"].max())
     print(f"Painel: {len(painel)} linhas; ano de referência {ano}")
 
-    desc = descritiva(painel, ano)
+    desc = descritiva.executar(painel, config.ANO_INICIO, ano, OUT)
     corr = correlacoes(painel, ano)
     mods = regressoes(painel, ano)
 
