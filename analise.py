@@ -501,7 +501,7 @@ def grafico_boxplot_dois_anos(painel, ano_ini, ano_fim):
             transform=ax.transAxes, fontsize=9, color=TINTA_SEC, va="bottom")
     ax.text(0, -0.1, f"{NOTA_BOX}\n{FONTE}", transform=ax.transAxes,
             fontsize=8, color=TINTA_SEC, va="top")
-    fig.savefig(OUT / "g7_boxplot_2015_x_2023.png")
+    fig.savefig(OUT / f"g7_boxplot_{ano_ini}_x_{ano_fim}.png")
     plt.close(fig)
 
 
@@ -548,68 +548,189 @@ def grafico_histograma(painel, ano):
 # ---------------------------------------------------------------------------
 # 5. Relatório
 # ---------------------------------------------------------------------------
-def relatorio(painel, ano, desc, corr, mods):
+def fp(p: float) -> str:
+    """p-valor formatado."""
+    return "p < 0,001" if p < 0.001 else f"p = {br(p, 3)}"
+
+
+def _tabela_md(cab: list, linhas: list) -> list:
+    return (["| " + " | ".join(cab) + " |", "|" + "|".join("---" for _ in cab) + "|"]
+            + ["| " + " | ".join(str(c) for c in l) + " |" for l in linhas])
+
+
+def relatorio(painel, ano, desc, corr, testes, mods, robustez=None):
+    ano_ini = config.ANO_INICIO
+    d23, rn = desc["desc"][ano], desc["rn"]
+
     def lin(pergunta, recorte):
         r = corr[(corr["pergunta"] == pergunta) & (corr["recorte"] == recorte)]
         if r.empty or pd.isna(r["pearson_r"].iloc[0]):
             return "n/d"
         r = r.iloc[0]
         sig = "significativa" if r["pearson_p"] < 0.05 else "não significativa"
-        return (f"r = {r['pearson_r']:.2f} ({r['forca']}, {sig}, p = {r['pearson_p']:.3f}); "
-                f"ρ = {r['spearman_rho']:.2f}; n = {int(r['n'])}")
+        return (f"r = {br(r['pearson_r'], 2)} ({r['forca']}, {sig}, {fp(r['pearson_p'])}); "
+                f"ρ de Spearman = {br(r['spearman_rho'], 2)} ({fp(r['spearman_p'])}); "
+                f"n = {int(r['n'])}")
 
     m1, m2, m3, m4 = (mods[k] for k in ("M1", "M2", "M3", "M4"))
-    res = mods["residuos_M1"].set_index("sigla_uf")
-    rn_res = res.loc[FOCO] if FOCO in res.index else None
     diag = mods["diag_M1"]
+    ufs, anos = painel["sigla_uf"].nunique(), painel["ano"].nunique()
 
-    txt = [f"# Resultados automáticos - Formação x Mercado de TI ({config.ANO_INICIO}-{config.ANO_FIM})",
-           "", f"Painel: {painel['sigla_uf'].nunique()} UFs x {painel['ano'].nunique()} anos "
-           f"= {len(painel)} observações. Corte transversal de referência: {ano}.", "",
-           "## Correlações", ""]
+    txt = [f"# Resultados automáticos - Formação x Mercado de TI "
+           f"({painel['ano'].min()}-{painel['ano'].max()})",
+           "", "Gerado por `analise.py`. Segue o fluxo PROBLEMA → DADOS → ANÁLISE ESTATÍSTICA "
+           "→ DIÁLOGO → CONTRIBUIÇÕES; o diálogo com a literatura e as contribuições estão "
+           "em `docs/estrutura_trabalho.md`.", ""]
+
+    # ---- 1. Dados
+    txt += ["## 1. Dados", "",
+            "- **Fontes secundárias**: INEP - Censo da Educação Superior (cursos da área "
+            f"CINE {config.CINE_AREA_GERAL_TI:02d}, Computação e TIC); MTE - RAIS Vínculos "
+            f"(vínculos ativos em 31/12 nas CBOs {', '.join(config.CBO_TI)}); IBGE - "
+            "estimativas de população. RAIS e população obtidas via Base dos Dados.",
+            f"- **Período**: {painel['ano'].min()} a {painel['ano'].max()}; "
+            f"**painel**: {ufs} UFs x {anos} anos = {len(painel)} observações.",
+            "- **Junção**: chave `sigla_uf + ano` (RAIS x INEP por junção interna, população "
+            "por junção à esquerda); linhas com UF fora das 27 (ex.: \"IGNORADO\" na RAIS) "
+            "são descartadas.",
+            f"- **Cortes transversais de referência**: {ano_ini} e {ano} (n = 27 UFs cada).",
+            ""]
+
+    # ---- 2. Descritiva
+    cab = ["Indicador", "Média (x̄)", "Mediana (x̃)", "Moda (Czuber)", "s", "CV (%)",
+           "Q1", "Q3", f"{FOCO}", f"Faixa do {FOCO} (posição)"]
+    linhas = [[r["indicador"], br(r["media"], 2), br(r["mediana"], 2), br(r["moda_czuber"], 2),
+               br(r["desvio_padrao"], 2), br(r["cv_pct"], 1), br(r["q1"], 2), br(r["q3"], 2),
+               br(r[f"valor_{FOCO}"], 2),
+               f"{r[f'faixa_quartil_{FOCO}']} ({int(r[f'posicao_{FOCO}_de_27'])}º)"]
+              for _, r in d23.iterrows()]
+    txt += ["## 2. Estatística descritiva", "",
+            f"### 2.1 Resumo entre as 27 UFs ({ano})", ""] + _tabela_md(cab, linhas) + [
+            "", f"Tabela completa (variância, amplitude, IQR, assimetria, outliers, classe "
+            f"modal): `01_descritiva_{ano}.csv` (e `01_descritiva_{ano_ini}.csv`). "
+            "Posição: 1º = maior valor.", ""]
+
+    cab = ["Indicador", f"{FOCO} {ano_ini}", f"{FOCO} {ano}", "Variação (%)",
+           f"Faixa {ano_ini}", f"Faixa {ano}", "Posição"]
+    dc = {"concluintes_ti": 0, "vinculos_ti": 0}
+    linhas = [[r["indicador"], br(r[f"valor_{FOCO}_{ano_ini}"], dc.get(v, 2)),
+               br(r[f"valor_{FOCO}_{ano}"], dc.get(v, 2)), f"{br(r['variacao_pct'], 1)}%",
+               r[f"faixa_quartil_{ano_ini}"], r[f"faixa_quartil_{ano}"],
+               f"{int(r[f'posicao_{ano_ini}_de_27'])}º → {int(r[f'posicao_{ano}_de_27'])}º"]
+              for v, r in rn.iterrows()]
+    txt += [f"### 2.2 {FOCO}: {ano_ini} x {ano}", ""] + _tabela_md(cab, linhas) + [""]
+
+    # Forma das distribuições (parágrafo gerado a partir dos números)
+    mais = d23[d23["media"] > d23["mediana"]]
+    destaque = ["vinculos_ti_100k", "concluintes_ti_100k", "salario_medio_ti",
+                "participacao_ti_emprego"]
+    partes = [f"{d23.loc[c, 'indicador']}: média {br(d23.loc[c, 'media'], 2)} x mediana "
+              f"{br(d23.loc[c, 'mediana'], 2)} (CV {br(d23.loc[c, 'cv_pct'], 0)}%, outliers "
+              f"{d23.loc[c, 'outliers_tukey']})" for c in destaque]
+    sw = testes[testes["teste"].str.startswith("Shapiro")]
+    n_rej = int((sw["p_valor"] < 0.05).sum())
+    fortes = d23[d23["classificacao_assimetria"].str.startswith("forte")]
+    outl = sorted({u.strip() for o in d23.loc[destaque, "outliers_tukey"]
+                   for u in o.split(",") if u.strip() != "nenhum"})
+    txt += ["### 2.3 Forma das distribuições e escolha da medida de referência", "",
+            f"Em {len(mais)} dos {len(d23)} indicadores a média supera a mediana, sinal de "
+            "assimetria à direita causada por poucos estados muito acima dos demais. Os casos "
+            "mais marcantes: " + "; ".join(partes) + ". "
+            f"A assimetria é forte (|g| ≥ 1) em {len(fortes)} indicadores e o teste de "
+            f"Shapiro-Wilk rejeita a normalidade em {n_rej} dos {len(sw)}. Como a média é "
+            f"puxada pelos polos ({', '.join(outl)}), a **mediana** e os **quartis** são as "
+            f"referências mais adequadas para situar o {FOCO}, e os testes de comparação "
+            "usados são não paramétricos.", "",
+            "Notas de método: quartis por `pandas.quantile` (interpolação linear); moda de "
+            f"Czuber calculada sobre classes de Sturges (k = {int(d23['n_classes_sturges'].iloc[0])} "
+            "para n = 27); outliers pelo critério de Tukey (1,5·IQR). Tabelas de frequências: "
+            "`01b_tabela_frequencias_*.csv`.", ""]
+
+    # ---- 3. Testes
+    cab = ["Indicador", "W", "p-valor", "Decisão (5%)"]
+    linhas = [[ROTULOS[r["variavel"]], br(r["estatistica"], 3), fp(r["p_valor"]),
+               r["decisao_5pct"]] for _, r in sw.iterrows()]
+    txt += ["## 3. Testes de hipótese", "", f"### 3.1 Normalidade (Shapiro-Wilk, {ano})", "",
+            "H0: os valores das 27 UFs vêm de uma distribuição normal.", ""] + \
+        _tabela_md(cab, linhas) + ["", "### 3.2 Comparações (não paramétricas)", ""]
+    for _, r in testes[~testes["teste"].str.startswith("Shapiro")].iterrows():
+        txt += [f"- **{r['teste']}**",
+                f"  - H0: {r['hipotese_nula']}; H1: {r['hipotese_alternativa']}",
+                f"  - estatística = {br(r['estatistica'], 1)}; {fp(r['p_valor'])}; "
+                f"n = {int(r['n'])} → **{r['decisao_5pct']}**",
+                f"  - {r['interpretacao']}"]
+    txt += ["", "### 3.3 Correlações (Pearson e Spearman)", ""]
     for _, _, nome in PARES:
         txt.append(f"- **{nome}**")
         txt.append(f"  - {ano}: {lin(nome, f'corte transversal {ano}')}")
         txt.append(f"  - painel: {lin(nome, 'painel (todos os anos)')}")
-    txt += ["", "## Regressões (coeficiente = elasticidade)", "",
-            f"- **M1** (corte {ano}): +1% em concluintes/100k → "
-            f"{m1.params['log_conc']:+.2f}% em empregos/100k "
-            f"(p = {m1.pvalues['log_conc']:.3f}; R² = {m1.rsquared:.2f})",
-            f"- **M2** (painel, formação t-1, efeito de ano): {m2.params['log_conc_lag']:+.2f} "
-            f"(p = {m2.pvalues['log_conc_lag']:.3f}; R² = {m2.rsquared:.2f})",
-            f"- **M3** (efeitos fixos UF e ano): {m3.params['log_conc_lag']:+.2f} "
-            f"(p = {m3.pvalues['log_conc_lag']:.3f}) - mede se, DENTRO de um mesmo estado, "
-            "anos com mais formação antecedem anos com mais emprego",
-            f"- **M4** (salário x formação, {ano}): {m4.params['log_conc']:+.2f} "
-            f"(p = {m4.pvalues['log_conc']:.3f}; R² = {m4.rsquared:.2f})",
-            "", "### Pressupostos do M1",
-            f"- Normalidade dos resíduos (Shapiro-Wilk): W = {diag['shapiro_W']:.3f}, "
-            f"p = {diag['shapiro_p']:.3f}",
-            f"- Homocedasticidade (Breusch-Pagan): LM = {diag['breusch_pagan_LM']:.3f}, "
-            f"p = {diag['breusch_pagan_p']:.3f} (erros robustos HC1 já usados)", ""]
-    if rn_res is not None:
+    txt += ["", "Detalhes: `06_testes_hipotese.csv`, `06b_crescimento_uf_*.csv`, "
+            "`02_correlacoes.csv`, `03_correlacao_P1_por_ano.csv`.", ""]
+
+    # ---- 4. Regressões
+    m3_sig = m3.pvalues["log_conc_lag"] < 0.05
+    txt += ["## 4. Regressões (resumo; coeficiente = elasticidade)", "",
+            f"- **M1** (corte {ano}): +1% em concluintes/100k ↔ "
+            f"{br(m1.params['log_conc'], 2)}% em empregos/100k "
+            f"({fp(m1.pvalues['log_conc'])}; R² = {br(m1.rsquared, 2)})",
+            f"- **M2** (painel, formação t-1, efeito de ano): {br(m2.params['log_conc_lag'], 2)} "
+            f"({fp(m2.pvalues['log_conc_lag'])}; R² = {br(m2.rsquared, 2)})",
+            f"- **M3** (efeitos fixos de UF e ano): {br(m3.params['log_conc_lag'], 2)} "
+            f"({fp(m3.pvalues['log_conc_lag'])}) - DENTRO de um mesmo estado, anos com mais "
+            "formação " + ("antecedem" if m3_sig else "não antecedem de forma significativa")
+            + " anos com mais emprego",
+            f"- **M4** (salário x formação, {ano}): {br(m4.params['log_conc'], 2)} "
+            f"({fp(m4.pvalues['log_conc'])}; R² = {br(m4.rsquared, 2)})",
+            f"- Pressupostos do M1: Shapiro-Wilk dos resíduos W = {br(diag['shapiro_W'], 3)}, "
+            f"{fp(diag['shapiro_p'])}; Breusch-Pagan LM = {br(diag['breusch_pagan_LM'], 3)}, "
+            f"{fp(diag['breusch_pagan_p'])} (erros robustos HC1). Saída completa: "
+            "`04_modelos.txt`.", ""]
+
+    # ---- 5. Posição do RN
+    res = mods["residuos_M1"].set_index("sigla_uf")
+    if FOCO in res.index:
+        r = res.loc[FOCO]
         pos = list(res.index).index(FOCO) + 1
-        txt += [f"## Posição do {FOCO}", "",
-                f"- Concluintes de TI/100k: {rn_res['concluintes_ti_100k']:.1f}; "
-                f"empregos de TI/100k observados: {rn_res['vinculos_ti_100k']:.1f}; "
-                f"previstos pelo M1: {rn_res['previsto']:.1f}",
-                f"- Resíduo: {rn_res['residuo']:+.3f} (≈ {100 * (np.exp(rn_res['residuo']) - 1):+.0f}% "
-                f"em relação ao esperado) - {pos}º menor de {len(res)} UFs",
-                "- Resíduo negativo: o estado tem MENOS emprego formal em TI do que o "
-                "esperado para o volume de formação (indício de que o mercado local não "
-                "absorve todos os formados). Positivo: o contrário.", ""]
-        d = desc["desc"][ano]
-        txt += [f"### Indicadores do {FOCO} em {ano} (posição entre as 27 UFs)", ""]
-        for _, r in d.iterrows():
-            txt.append(f"- {r['indicador']}: {r[f'valor_{FOCO}']:.2f} "
-                       f"({int(r[f'posicao_{FOCO}_de_27'])}º; mediana das UFs {r['mediana']:.2f}; "
-                       f"{r[f'faixa_quartil_{FOCO}']})")
-    txt += ["", "## Gráficos", "",
-            "- g1_evolucao_rn_ne_br.png", "- g2_dispersao_formacao_emprego.png",
-            "- g3_dispersao_formacao_salario.png", "- g4_concluintes_por_100_empregos.png",
-            "- g5_dispersao_mulheres.png", "",
-            "> Lembrete: correlação não implica causalidade. Os resultados indicam "
-            "associação entre formação e mercado, não que um cause o outro."]
+        c = rn.loc["concluintes_por_100_vinculos"]
+        w = testes[testes["teste"].str.startswith("Wilcoxon")].iloc[0]
+        cl, vi = rn.loc["concluintes_ti"], rn.loc["vinculos_ti"]
+        sal = d23.loc["salario_medio_ti"]
+        txt += [f"## 5. Posição do {FOCO}", "",
+                f"- Concluintes por 100 empregos de TI: {br(c[f'valor_{FOCO}_{ano_ini}'], 1)} "
+                f"({c[f'faixa_quartil_{ano_ini}']}) em {ano_ini} → "
+                f"{br(c[f'valor_{FOCO}_{ano}'], 1)} ({c[f'faixa_quartil_{ano}']}, "
+                f"{int(c[f'posicao_{ano}_de_27'])}º de 27) em {ano}; mediana das UFs em {ano}: "
+                f"{br(c[f'mediana_UFs_{ano}'], 1)}.",
+                f"- Concluintes de TI: {br(cl[f'valor_{FOCO}_{ano_ini}'], 0)} → "
+                f"{br(cl[f'valor_{FOCO}_{ano}'], 0)} ({br(cl['variacao_pct'], 0)}%); empregos "
+                f"formais de TI: {br(vi[f'valor_{FOCO}_{ano_ini}'], 0)} → "
+                f"{br(vi[f'valor_{FOCO}_{ano}'], 0)} ({br(vi['variacao_pct'], 0)}%). Diferença "
+                f"entre os dois crescimentos: {br(w['dif_rn'], 0)} p.p., a {int(w['pos_rn'])}ª maior entre as 27 UFs.",
+                f"- Salário médio em TI: R$ {br(sal[f'valor_{FOCO}'], 2)} "
+                f"({sal[f'faixa_quartil_{FOCO}']}; mediana das UFs R$ {br(sal['mediana'], 2)}).",
+                f"- Modelo M1: empregos de TI/100k observados {br(r['vinculos_ti_100k'], 1)} x "
+                f"previstos pelo volume de formação {br(r['previsto'], 1)}; resíduo "
+                f"{br(r['residuo'], 3)} (≈ {br(100 * (np.exp(r['residuo']) - 1), 0)}% em relação "
+                f"ao esperado), o {pos}º menor de {len(res)} UFs. Resíduo negativo = menos emprego "
+                "formal do que o esperado para a formação (indício de baixa absorção local).", ""]
+
+    # ---- 6. Robustez (preenchida quando calculada)
+    if robustez:
+        txt += robustez + [""]
+
+    txt += ["## Arquivos gerados", "",
+            f"- Tabelas: `01_descritiva_{ano_ini}.csv`, `01_descritiva_{ano}.csv`, "
+            f"`01b_tabela_frequencias_*.csv`, `01c_rn_{ano_ini}_x_{ano}.csv`, "
+            "`02_correlacoes.csv`, `03_correlacao_P1_por_ano.csv`, `04_modelos.txt`, "
+            f"`05_residuos_M1_{ano}.csv`, `06_testes_hipotese.csv`, "
+            f"`06b_crescimento_uf_{ano_ini}_{ano}.csv`",
+            "- Gráficos: `g1_evolucao_rn_ne_br.png`, `g2_dispersao_formacao_emprego.png`, "
+            "`g3_dispersao_formacao_salario.png`, `g4_concluintes_por_100_empregos.png`, "
+            f"`g5_dispersao_mulheres.png`, `g6_boxplots_{ano}.png`, "
+            f"`g7_boxplot_{ano_ini}_x_{ano}.png`, "
+            f"`g8_histograma_concluintes_por_100_empregos_{ano}.png`",
+            "", "> Correlação não implica causalidade. Os resultados indicam associação e "
+            "indícios, não relações de causa e efeito."]
     (OUT / "relatorio.md").write_text("\n".join(txt), encoding="utf-8")
 
 
@@ -638,7 +759,7 @@ def main() -> None:
     grafico_boxplot_dois_anos(painel, config.ANO_INICIO, ano)
     grafico_histograma(painel, ano)
 
-    relatorio(painel, ano, desc, corr, mods)
+    relatorio(painel, ano, desc, corr, testes, mods)
     print(f"OK: resultados em {OUT}")
 
 

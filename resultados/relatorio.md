@@ -1,62 +1,125 @@
 # Resultados automáticos - Formação x Mercado de TI (2015-2023)
 
-Painel: 27 UFs x 9 anos = 243 observações. Corte transversal de referência: 2023.
+Gerado por `analise.py`. Segue o fluxo PROBLEMA → DADOS → ANÁLISE ESTATÍSTICA → DIÁLOGO → CONTRIBUIÇÕES; o diálogo com a literatura e as contribuições estão em `docs/estrutura_trabalho.md`.
 
-## Correlações
+## 1. Dados
+
+- **Fontes secundárias**: INEP - Censo da Educação Superior (cursos da área CINE 06, Computação e TIC); MTE - RAIS Vínculos (vínculos ativos em 31/12 nas CBOs 1425, 2122, 2123, 2124, 3171, 3172); IBGE - estimativas de população. RAIS e população obtidas via Base dos Dados.
+- **Período**: 2015 a 2023; **painel**: 27 UFs x 9 anos = 243 observações.
+- **Junção**: chave `sigla_uf + ano` (RAIS x INEP por junção interna, população por junção à esquerda); linhas com UF fora das 27 (ex.: "IGNORADO" na RAIS) são descartadas.
+- **Cortes transversais de referência**: 2015 e 2023 (n = 27 UFs cada).
+
+## 2. Estatística descritiva
+
+### 2.1 Resumo entre as 27 UFs (2023)
+
+| Indicador | Média (x̄) | Mediana (x̃) | Moda (Czuber) | s | CV (%) | Q1 | Q3 | RN | Faixa do RN (posição) |
+|---|---|---|---|---|---|---|---|---|---|
+| Concluintes de TI por 100 mil hab. | 30,38 | 24,86 | 22,99 | 23,00 | 75,7 | 17,45 | 32,94 | 25,43 | entre a mediana e Q3 (13º) |
+| Empregos formais de TI por 100 mil hab. | 256,11 | 152,62 | 159,68 | 256,19 | 100,0 | 111,56 | 313,27 | 114,90 | entre Q1 e a mediana (20º) |
+| Concluintes por 100 empregos de TI | 14,79 | 14,44 | 14,94 | 5,28 | 35,7 | 10,95 | 16,90 | 22,13 | acima de Q3 (4º) |
+| Salário médio em TI (R$) | 6.106,72 | 5.678,75 | 5.127,88 | 1.536,54 | 25,2 | 5.086,21 | 6.860,02 | 4.660,20 | abaixo de Q1 (24º) |
+| Salário TI / salário médio geral | 1,72 | 1,68 | 1,51 | 0,27 | 15,5 | 1,50 | 1,91 | 1,48 | abaixo de Q1 (22º) |
+| % do emprego formal que é TI | 0,88 | 0,67 | 0,53 | 0,55 | 62,1 | 0,52 | 1,11 | 0,55 | entre Q1 e a mediana (18º) |
+| % mulheres entre concluintes de TI | 15,14 | 14,63 | 14,37 | 2,39 | 15,8 | 13,69 | 16,74 | 13,69 | entre Q1 e a mediana (20º) |
+| % mulheres nos empregos de TI | 18,81 | 19,09 | 20,06 | 2,65 | 14,1 | 17,55 | 20,41 | 17,02 | abaixo de Q1 (22º) |
+
+Tabela completa (variância, amplitude, IQR, assimetria, outliers, classe modal): `01_descritiva_2023.csv` (e `01_descritiva_2015.csv`). Posição: 1º = maior valor.
+
+### 2.2 RN: 2015 x 2023
+
+| Indicador | RN 2015 | RN 2023 | Variação (%) | Faixa 2015 | Faixa 2023 | Posição |
+|---|---|---|---|---|---|---|
+| Concluintes de TI (nº) | 266 | 840 | 215,8% | abaixo de Q1 | entre Q1 e a mediana | 23º → 15º |
+| Empregos formais de TI (nº) | 2.661 | 3.795 | 42,6% | entre Q1 e a mediana | entre Q1 e a mediana | 18º → 19º |
+| Concluintes de TI por 100 mil hab. | 7,73 | 25,43 | 229,1% | abaixo de Q1 | entre a mediana e Q3 | 24º → 13º |
+| Empregos formais de TI por 100 mil hab. | 77,31 | 114,90 | 48,6% | entre Q1 e a mediana | entre Q1 e a mediana | 18º → 20º |
+| Concluintes por 100 empregos de TI | 10,00 | 22,13 | 121,4% | entre Q1 e a mediana | acima de Q3 | 17º → 4º |
+| Salário médio em TI (R$) | 3.253,73 | 4.660,20 | 43,2% | abaixo de Q1 | abaixo de Q1 | 22º → 24º |
+| Salário TI / salário médio geral | 1,60 | 1,48 | -7,8% | entre Q1 e a mediana | abaixo de Q1 | 18º → 22º |
+| % do emprego formal que é TI | 0,44 | 0,55 | 25,4% | entre Q1 e a mediana | entre Q1 e a mediana | 20º → 18º |
+| % mulheres entre concluintes de TI | 10,53 | 13,69 | 30,1% | abaixo de Q1 | entre Q1 e a mediana | 25º → 20º |
+| % mulheres nos empregos de TI | 16,42 | 17,02 | 3,7% | abaixo de Q1 | abaixo de Q1 | 24º → 22º |
+
+### 2.3 Forma das distribuições e escolha da medida de referência
+
+Em 7 dos 8 indicadores a média supera a mediana, sinal de assimetria à direita causada por poucos estados muito acima dos demais. Os casos mais marcantes: Empregos formais de TI por 100 mil hab.: média 256,11 x mediana 152,62 (CV 100%, outliers SC, SP, DF); Concluintes de TI por 100 mil hab.: média 30,38 x mediana 24,86 (CV 76%, outliers SP, DF); Salário médio em TI (R$): média 6.106,72 x mediana 5.678,75 (CV 25%, outliers SP, DF); % do emprego formal que é TI: média 0,88 x mediana 0,67 (CV 62%, outliers DF, SP). A assimetria é forte (|g| ≥ 1) em 4 indicadores e o teste de Shapiro-Wilk rejeita a normalidade em 4 dos 8. Como a média é puxada pelos polos (DF, SC, SP), a **mediana** e os **quartis** são as referências mais adequadas para situar o RN, e os testes de comparação usados são não paramétricos.
+
+Notas de método: quartis por `pandas.quantile` (interpolação linear); moda de Czuber calculada sobre classes de Sturges (k = 6 para n = 27); outliers pelo critério de Tukey (1,5·IQR). Tabelas de frequências: `01b_tabela_frequencias_*.csv`.
+
+## 3. Testes de hipótese
+
+### 3.1 Normalidade (Shapiro-Wilk, 2023)
+
+H0: os valores das 27 UFs vêm de uma distribuição normal.
+
+| Indicador | W | p-valor | Decisão (5%) |
+|---|---|---|---|
+| Concluintes de TI por 100 mil hab. | 0,686 | p < 0,001 | rejeita H0 |
+| Empregos formais de TI por 100 mil hab. | 0,713 | p < 0,001 | rejeita H0 |
+| Concluintes por 100 empregos de TI | 0,936 | p = 0,099 | não rejeita H0 |
+| Salário médio em TI (R$) | 0,872 | p = 0,003 | rejeita H0 |
+| Salário TI / salário médio geral | 0,955 | p = 0,282 | não rejeita H0 |
+| % do emprego formal que é TI | 0,838 | p < 0,001 | rejeita H0 |
+| % mulheres entre concluintes de TI | 0,969 | p = 0,584 | não rejeita H0 |
+| % mulheres nos empregos de TI | 0,936 | p = 0,099 | não rejeita H0 |
+
+### 3.2 Comparações (não paramétricas)
+
+- **Wilcoxon pareado: crescimento % concluintes x vínculos de TI (2015-2023)**
+  - H0: mediana da diferença (cresc. concluintes - cresc. vínculos) <= 0; H1: os concluintes cresceram mais que os empregos (mediana > 0)
+  - estatística = 226,0; p = 0,193; n = 27 → **não rejeita H0**
+  - no conjunto das UFs não há evidência de que a formação tenha crescido mais que o emprego. Mediana do cresc. dos concluintes 65,9% x vínculos 52,3%; diferença mediana 7,0 p.p.; em 15 de 27 UFs a formação cresceu mais que o emprego. RN: 216% x 43% (diferença de 173 p.p., 2ª maior entre as UFs)
+- **Mann-Whitney U: Concluintes por 100 empregos de TI, Nordeste x demais UFs (2023)**
+  - H0: as distribuições do Nordeste e das demais UFs são iguais; H1: o Nordeste forma mais em relação ao emprego (valores maiores)
+  - estatística = 121,0; p = 0,021; n = 27 → **rejeita H0**
+  - mediana Nordeste (n=9) 15,10 x demais (n=18) 11,79; há evidência de que o Nordeste tem valores maiores
+- **Mann-Whitney U: Salário médio em TI (R$), Nordeste x demais UFs (2023)**
+  - H0: as distribuições do Nordeste e das demais UFs são iguais; H1: o Nordeste paga menos em TI (valores menores)
+  - estatística = 26,0; p = 0,003; n = 27 → **rejeita H0**
+  - mediana Nordeste (n=9) 4.989 x demais (n=18) 6.334; há evidência de que o Nordeste tem valores menores
+
+### 3.3 Correlações (Pearson e Spearman)
 
 - **P1 Formação x emprego**
-  - 2023: r = 0.95 (muito forte, significativa, p = 0.000); ρ = 0.88; n = 27
-  - painel: r = 0.45 (moderada, significativa, p = 0.000); ρ = 0.70; n = 243
+  - 2023: r = 0,95 (muito forte, significativa, p < 0,001); ρ de Spearman = 0,88 (p < 0,001); n = 27
+  - painel: r = 0,45 (moderada, significativa, p < 0,001); ρ de Spearman = 0,70 (p < 0,001); n = 243
 - **P2 Formação x salário médio TI**
-  - 2023: r = 0.85 (muito forte, significativa, p = 0.000); ρ = 0.73; n = 27
-  - painel: r = 0.78 (muito forte, significativa, p = 0.000); ρ = 0.60; n = 243
+  - 2023: r = 0,85 (muito forte, significativa, p < 0,001); ρ de Spearman = 0,73 (p < 0,001); n = 27
+  - painel: r = 0,78 (muito forte, significativa, p < 0,001); ρ de Spearman = 0,60 (p < 0,001); n = 243
 - **P2 Formação x salário relativo TI**
-  - 2023: r = 0.36 (moderada, não significativa, p = 0.066); ρ = 0.67; n = 27
-  - painel: r = 0.24 (fraca, significativa, p = 0.000); ρ = 0.35; n = 243
+  - 2023: r = 0,36 (moderada, não significativa, p = 0,066); ρ de Spearman = 0,67 (p < 0,001); n = 27
+  - painel: r = 0,24 (fraca, significativa, p < 0,001); ρ de Spearman = 0,35 (p < 0,001); n = 243
 - **P3 Formação (t-1) x emprego (t)**
-  - 2023: r = 0.95 (muito forte, significativa, p = 0.000); ρ = 0.91; n = 27
-  - painel: r = 0.43 (moderada, significativa, p = 0.000); ρ = 0.67; n = 216
+  - 2023: r = 0,95 (muito forte, significativa, p < 0,001); ρ de Spearman = 0,91 (p < 0,001); n = 27
+  - painel: r = 0,43 (moderada, significativa, p < 0,001); ρ de Spearman = 0,67 (p < 0,001); n = 216
 - **P3 Crescimento formação x crescimento emprego**
-  - 2023: r = 0.12 (fraca, não significativa, p = 0.564); ρ = -0.23; n = 27
-  - painel: r = 0.01 (desprezível, não significativa, p = 0.933); ρ = 0.18; n = 216
+  - 2023: r = 0,12 (fraca, não significativa, p = 0,564); ρ de Spearman = -0,23 (p = 0,239); n = 27
+  - painel: r = 0,01 (desprezível, não significativa, p = 0,933); ρ de Spearman = 0,18 (p = 0,008); n = 216
 - **P4 % mulheres formação x mercado**
-  - 2023: r = 0.60 (forte, significativa, p = 0.001); ρ = 0.64; n = 27
-  - painel: r = 0.06 (desprezível, não significativa, p = 0.330); ρ = 0.22; n = 243
+  - 2023: r = 0,60 (forte, significativa, p < 0,001); ρ de Spearman = 0,64 (p < 0,001); n = 27
+  - painel: r = 0,06 (desprezível, não significativa, p = 0,330); ρ de Spearman = 0,22 (p < 0,001); n = 243
 
-## Regressões (coeficiente = elasticidade)
+Detalhes: `06_testes_hipotese.csv`, `06b_crescimento_uf_*.csv`, `02_correlacoes.csv`, `03_correlacao_P1_por_ano.csv`.
 
-- **M1** (corte 2023): +1% em concluintes/100k → +1.29% em empregos/100k (p = 0.000; R² = 0.84)
-- **M2** (painel, formação t-1, efeito de ano): +1.15 (p = 0.000; R² = 0.48)
-- **M3** (efeitos fixos UF e ano): +0.03 (p = 0.891) - mede se, DENTRO de um mesmo estado, anos com mais formação antecedem anos com mais emprego
-- **M4** (salário x formação, 2023): +0.35 (p = 0.000; R² = 0.71)
+## 4. Regressões (resumo; coeficiente = elasticidade)
 
-### Pressupostos do M1
-- Normalidade dos resíduos (Shapiro-Wilk): W = 0.961, p = 0.389
-- Homocedasticidade (Breusch-Pagan): LM = 0.037, p = 0.847 (erros robustos HC1 já usados)
+- **M1** (corte 2023): +1% em concluintes/100k ↔ 1,29% em empregos/100k (p < 0,001; R² = 0,84)
+- **M2** (painel, formação t-1, efeito de ano): 1,15 (p < 0,001; R² = 0,48)
+- **M3** (efeitos fixos de UF e ano): 0,03 (p = 0,891) - DENTRO de um mesmo estado, anos com mais formação não antecedem de forma significativa anos com mais emprego
+- **M4** (salário x formação, 2023): 0,35 (p < 0,001; R² = 0,71)
+- Pressupostos do M1: Shapiro-Wilk dos resíduos W = 0,961, p = 0,389; Breusch-Pagan LM = 0,037, p = 0,847 (erros robustos HC1). Saída completa: `04_modelos.txt`.
 
-## Posição do RN
+## 5. Posição do RN
 
-- Concluintes de TI/100k: 25.4; empregos de TI/100k observados: 114.9; previstos pelo M1: 182.1
-- Resíduo: -0.461 (≈ -37% em relação ao esperado) - 3º menor de 27 UFs
-- Resíduo negativo: o estado tem MENOS emprego formal em TI do que o esperado para o volume de formação (indício de que o mercado local não absorve todos os formados). Positivo: o contrário.
+- Concluintes por 100 empregos de TI: 10,0 (entre Q1 e a mediana) em 2015 → 22,1 (acima de Q3, 4º de 27) em 2023; mediana das UFs em 2023: 14,4.
+- Concluintes de TI: 266 → 840 (216%); empregos formais de TI: 2.661 → 3.795 (43%). Diferença entre os dois crescimentos: 173 p.p., a 2ª maior entre as 27 UFs.
+- Salário médio em TI: R$ 4.660,20 (abaixo de Q1; mediana das UFs R$ 5.678,75).
+- Modelo M1: empregos de TI/100k observados 114,9 x previstos pelo volume de formação 182,1; resíduo -0,461 (≈ -37% em relação ao esperado), o 3º menor de 27 UFs. Resíduo negativo = menos emprego formal do que o esperado para a formação (indício de baixa absorção local).
 
-### Indicadores do RN em 2023 (posição entre as 27 UFs)
+## Arquivos gerados
 
-- Concluintes de TI por 100 mil hab.: 25.43 (13º; mediana das UFs 24.86; entre a mediana e Q3)
-- Empregos formais de TI por 100 mil hab.: 114.90 (20º; mediana das UFs 152.62; entre Q1 e a mediana)
-- Concluintes por 100 empregos de TI: 22.13 (4º; mediana das UFs 14.44; acima de Q3)
-- Salário médio em TI (R$): 4660.20 (24º; mediana das UFs 5678.75; abaixo de Q1)
-- Salário TI / salário médio geral: 1.48 (22º; mediana das UFs 1.68; abaixo de Q1)
-- % do emprego formal que é TI: 0.55 (18º; mediana das UFs 0.67; entre Q1 e a mediana)
-- % mulheres entre concluintes de TI: 13.69 (20º; mediana das UFs 14.63; entre Q1 e a mediana)
-- % mulheres nos empregos de TI: 17.02 (22º; mediana das UFs 19.09; abaixo de Q1)
+- Tabelas: `01_descritiva_2015.csv`, `01_descritiva_2023.csv`, `01b_tabela_frequencias_*.csv`, `01c_rn_2015_x_2023.csv`, `02_correlacoes.csv`, `03_correlacao_P1_por_ano.csv`, `04_modelos.txt`, `05_residuos_M1_2023.csv`, `06_testes_hipotese.csv`, `06b_crescimento_uf_2015_2023.csv`
+- Gráficos: `g1_evolucao_rn_ne_br.png`, `g2_dispersao_formacao_emprego.png`, `g3_dispersao_formacao_salario.png`, `g4_concluintes_por_100_empregos.png`, `g5_dispersao_mulheres.png`, `g6_boxplots_2023.png`, `g7_boxplot_2015_x_2023.png`, `g8_histograma_concluintes_por_100_empregos_2023.png`
 
-## Gráficos
-
-- g1_evolucao_rn_ne_br.png
-- g2_dispersao_formacao_emprego.png
-- g3_dispersao_formacao_salario.png
-- g4_concluintes_por_100_empregos.png
-- g5_dispersao_mulheres.png
-
-> Lembrete: correlação não implica causalidade. Os resultados indicam associação entre formação e mercado, não que um cause o outro.
+> Correlação não implica causalidade. Os resultados indicam associação e indícios, não relações de causa e efeito.
