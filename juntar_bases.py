@@ -19,10 +19,19 @@ def carregar() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     rais = pd.read_csv(config.ARQ_RAIS)
     inep = pd.read_csv(config.ARQ_INEP)
     pop = pd.read_csv(config.ARQ_POP)
-    for df in (rais, inep, pop):
+    bases = {"RAIS": rais, "INEP": inep, "População": pop}
+    for nome, df in bases.items():
         df["sigla_uf"] = df["sigla_uf"].str.upper().str.strip()
         df["ano"] = df["ano"].astype(int)
-    return rais, inep, pop
+        # Descarta linhas cuja UF não é uma das 27 (ex.: "IGNORADO" na RAIS)
+        invalidas = ~df["sigla_uf"].isin(config.UFS)
+        if invalidas.any():
+            descr = ", ".join(f"{u}/{a}" for u, a in
+                              df.loc[invalidas, ["sigla_uf", "ano"]].itertuples(index=False))
+            print(f"  {nome}: {int(invalidas.sum())} linha(s) com UF fora das 27 "
+                  f"descartada(s) ({descr})")
+        bases[nome] = df[~invalidas].copy()
+    return bases["RAIS"], bases["INEP"], bases["População"]
 
 
 def checar_juncao(rais: pd.DataFrame, inep: pd.DataFrame) -> None:
