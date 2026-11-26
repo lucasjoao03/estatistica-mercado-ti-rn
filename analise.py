@@ -12,6 +12,7 @@ Perguntas:
 Entrada:  dados/processados/painel_uf_ano.csv
 Saídas:   resultados/ (tabelas .csv, gráficos .png, modelos .txt, relatorio.md)
 """
+import argparse
 import textwrap
 import warnings
 
@@ -497,7 +498,8 @@ def grafico_boxplot_dois_anos(painel, ano_ini, ano_fim):
     ax.set_ylabel(ROTULOS[col])
     ax.set_title(f"Concluintes por 100 empregos de TI: {ano_ini} x {ano_fim}",
                  loc="left", color=TINTA, pad=24)
-    ax.text(0, 1.02, f"O {FOCO} saiu da metade inferior e passou para acima do 3º quartil",
+    ax.text(0, 1.02, f"{FOCO}: {m0[f'faixa_quartil_{FOCO}']} em {ano_ini} → "
+            f"{m1[f'faixa_quartil_{FOCO}']} em {ano_fim}",
             transform=ax.transAxes, fontsize=9, color=TINTA_SEC, va="bottom")
     ax.text(0, -0.1, f"{NOTA_BOX}\n{FONTE}", transform=ax.transAxes,
             fontsize=8, color=TINTA_SEC, va="top")
@@ -558,7 +560,7 @@ def _tabela_md(cab: list, linhas: list) -> list:
             + ["| " + " | ".join(str(c) for c in l) + " |" for l in linhas])
 
 
-def relatorio(painel, ano, desc, corr, testes, mods, robustez=None):
+def relatorio(painel, ano, desc, corr, testes, mods, robustez=None, versao=""):
     ano_ini = config.ANO_INICIO
     d23, rn = desc["desc"][ano], desc["rn"]
 
@@ -594,6 +596,7 @@ def relatorio(painel, ano, desc, corr, testes, mods, robustez=None):
             "por junção à esquerda); linhas com UF fora das 27 (ex.: \"IGNORADO\" na RAIS) "
             "são descartadas.",
             f"- **Cortes transversais de referência**: {ano_ini} e {ano} (n = 27 UFs cada).",
+            f"- **Formação (concluintes) considerada**: {versao}.",
             ""]
 
     # ---- 2. Descritiva
@@ -734,8 +737,79 @@ def relatorio(painel, ano, desc, corr, testes, mods, robustez=None):
     (OUT / "relatorio.md").write_text("\n".join(txt), encoding="utf-8")
 
 
+# ---------------------------------------------------------------------------
+# 6. Robustez: todos os cursos x só presenciais (efeito do EAD)
+# ---------------------------------------------------------------------------
+NOMES_VERSAO = {"concluintes_ti": "todos os cursos (presencial + EAD)",
+                "concluintes_ti_presencial": "só cursos presenciais"}
+
+
+def numeros_chave(painel: pd.DataFrame, ano: int) -> dict:
+    """Principais números de uma versão do painel (sem gravar arquivos)."""
+    corte_a = painel[painel["ano"] == ano]
+    c = correlacao(corte_a["concluintes_ti_100k"], corte_a["vinculos_ti_100k"])
+    m = descritiva.medidas(descritiva.corte(painel, ano)["concluintes_por_100_vinculos"])
+    cr = crescimento_uf(painel, config.ANO_INICIO, ano)
+    w = stats.wilcoxon(cr["cresc_concluintes_pct"], cr["cresc_vinculos_pct"],
+                       alternative="greater")
+    return {
+        "r_P1": c["pearson_r"], "p_P1": c["pearson_p"],
+        "rn_c100": m[f"valor_{FOCO}"], "mediana_c100": m["mediana"],
+        "q3_c100": m["q3"], "faixa_rn": m[f"faixa_quartil_{FOCO}"],
+        "pos_rn": m[f"posicao_{FOCO}"],
+        "rn_cresc_conc": cr.loc[FOCO, "cresc_concluintes_pct"],
+        "rn_cresc_vinc": cr.loc[FOCO, "cresc_vinculos_pct"],
+        "w_stat": w.statistic, "w_p": w.pvalue,
+        "w_med_dif": cr["diferenca_pp"].median(),
+    }
+
+
+def secao_robustez(painel: pd.DataFrame, ano: int) -> list:
+    import juntar_bases  # import tardio: só é preciso aqui e no modo --presencial
+
+    col_a = config.COLUNA_FORMACAO
+    col_b = ("concluintes_ti_presencial" if col_a == "concluintes_ti" else "concluintes_ti")
+    print(f"Robustez: recalculando com {col_b}")
+    a = numeros_chave(painel, ano)
+    b = numeros_chave(juntar_bases.montar_painel(col_b), ano)
+    ver = [NOMES_VERSAO.get(col_a, col_a), NOMES_VERSAO.get(col_b, col_b)]
+    linhas = [
+        [f"Correlação P1 ({ano}, Pearson r)",
+         *(f"{br(x['r_P1'], 2)} ({fp(x['p_P1'])})" for x in (a, b))],
+        [f"{FOCO}: concluintes por 100 empregos ({ano})",
+         *(f"{br(x['rn_c100'], 1)} (mediana {br(x['mediana_c100'], 1)}, Q3 {br(x['q3_c100'], 1)})"
+           for x in (a, b))],
+        [f"{FOCO}: faixa de quartil e posição",
+         *(f"{x['faixa_rn']} ({x['pos_rn']}º)" for x in (a, b))],
+        [f"{FOCO}: crescimento concluintes x vínculos ({config.ANO_INICIO}-{ano})",
+         *(f"{br(x['rn_cresc_conc'], 0)}% x {br(x['rn_cresc_vinc'], 0)}%" for x in (a, b))],
+        ["Wilcoxon (H1: concluintes cresceram mais que empregos)",
+         *(f"W = {br(x['w_stat'], 0)}; {fp(x['w_p'])}; dif. mediana {br(x['w_med_dif'], 1)} p.p."
+           for x in (a, b))],
+    ]
+    return ["## 6. Robustez: efeito dos cursos EAD", "",
+            "Os concluintes de cursos EAD são contados na UF registrada no Censo, o que pode "
+            "inflar a formação de alguns estados. A tabela repete os principais números "
+            "usando só os cursos presenciais (`python analise.py --presencial` gera a análise "
+            "completa em `resultados/robustez_presencial/`).", ""] + \
+        _tabela_md(["Medida", *ver], linhas)
+
+
 def main() -> None:
-    painel = pd.read_csv(config.ARQ_PAINEL)
+    global OUT
+    parser = argparse.ArgumentParser(description="Análise formação x mercado de TI")
+    parser.add_argument("--presencial", action="store_true",
+                        help="usa só concluintes de cursos presenciais e grava em "
+                             "resultados/robustez_presencial/")
+    args = parser.parse_args()
+
+    if args.presencial:
+        import juntar_bases
+        painel = juntar_bases.montar_painel("concluintes_ti_presencial")
+        OUT = config.RESULTADOS / "robustez_presencial"
+        OUT.mkdir(parents=True, exist_ok=True)
+    else:
+        painel = pd.read_csv(config.ARQ_PAINEL)
     ano = int(painel["ano"].max())
     print(f"Painel: {len(painel)} linhas; ano de referência {ano}")
 
@@ -759,7 +833,10 @@ def main() -> None:
     grafico_boxplot_dois_anos(painel, config.ANO_INICIO, ano)
     grafico_histograma(painel, ano)
 
-    relatorio(painel, ano, desc, corr, testes, mods)
+    coluna = "concluintes_ti_presencial" if args.presencial else config.COLUNA_FORMACAO
+    robustez = None if args.presencial else secao_robustez(painel, ano)
+    relatorio(painel, ano, desc, corr, testes, mods, robustez,
+              versao=NOMES_VERSAO.get(coluna, coluna))
     print(f"OK: resultados em {OUT}")
 
 

@@ -1,0 +1,13 @@
+pergunta,recorte,n,pearson_r,pearson_p,spearman_rho,spearman_p,forca
+P1 Formação x emprego,corte transversal 2023,27,0.897,0.0,0.8181,0.0,muito forte
+P1 Formação x emprego,painel (todos os anos),243,0.3953,0.0,0.5869,0.0,moderada
+P2 Formação x salário médio TI,corte transversal 2023,27,0.7637,0.0,0.6111,0.0007,muito forte
+P2 Formação x salário médio TI,painel (todos os anos),243,0.6278,0.0,0.3295,0.0,forte
+P2 Formação x salário relativo TI,corte transversal 2023,27,0.2922,0.1392,0.5855,0.0013,fraca
+P2 Formação x salário relativo TI,painel (todos os anos),243,0.2858,0.0,0.4018,0.0,fraca
+P3 Formação (t-1) x emprego (t),corte transversal 2023,27,0.9114,0.0,0.7674,0.0,muito forte
+P3 Formação (t-1) x emprego (t),painel (todos os anos),216,0.3677,0.0,0.5588,0.0,moderada
+P3 Crescimento formação x crescimento emprego,corte transversal 2023,27,-0.0186,0.9266,-0.2314,0.2455,desprezível
+P3 Crescimento formação x crescimento emprego,painel (todos os anos),216,0.0374,0.5844,-0.001,0.9884,desprezível
+P4 % mulheres formação x mercado,corte transversal 2023,27,0.6037,0.0009,0.6361,0.0004,forte
+P4 % mulheres formação x mercado,painel (todos os anos),243,0.0628,0.3298,0.2176,0.0006,desprezível

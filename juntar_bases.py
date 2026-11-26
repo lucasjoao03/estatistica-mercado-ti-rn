@@ -47,13 +47,21 @@ def checar_juncao(rais: pd.DataFrame, inep: pd.DataFrame) -> None:
         print(f"  Só no INEP: {so_inep[CHAVE].values.tolist()[:10]}")
 
 
-def criar_indicadores(df: pd.DataFrame) -> pd.DataFrame:
+def criar_indicadores(df: pd.DataFrame, coluna_formacao: str = "concluintes_ti") -> pd.DataFrame:
     p100k = df["populacao"] / 100_000
+
+    # % de mulheres sempre sobre o total (o INEP não traz mulheres por modalidade)
+    df["pct_fem_concluintes_ti"] = 100 * df["concluintes_ti_fem"] / df["concluintes_ti"]
+
+    # Coluna de formação escolhida em config.COLUNA_FORMACAO: passa a ser
+    # "concluintes_ti" para todos os indicadores abaixo; o total fica guardado.
+    if coluna_formacao != "concluintes_ti":
+        df["concluintes_ti_total"] = df["concluintes_ti"]
+        df["concluintes_ti"] = df[coluna_formacao]
 
     # Formação
     df["concluintes_ti_100k"] = df["concluintes_ti"] / p100k
     df["matriculas_ti_100k"] = df["matriculas_ti"] / p100k
-    df["pct_fem_concluintes_ti"] = 100 * df["concluintes_ti_fem"] / df["concluintes_ti"]
 
     # Mercado
     df["vinculos_ti_100k"] = df["vinculos_ti"] / p100k
@@ -73,7 +81,9 @@ def criar_indicadores(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def main() -> None:
+def montar_painel(coluna_formacao: str | None = None) -> pd.DataFrame:
+    """Junta as bases e cria os indicadores (sem salvar)."""
+    coluna_formacao = coluna_formacao or config.COLUNA_FORMACAO
     rais, inep, pop = carregar()
     checar_juncao(rais, inep)
 
@@ -85,7 +95,12 @@ def main() -> None:
     if faltando_pop:
         print(f"  ATENÇÃO: {faltando_pop} linhas sem população")
 
-    painel = criar_indicadores(painel)
+    print(f"  Coluna de formação: {coluna_formacao}")
+    return criar_indicadores(painel, coluna_formacao)
+
+
+def main() -> None:
+    painel = montar_painel()
     painel.to_csv(config.ARQ_PAINEL, index=False)
     print(f"OK: painel com {len(painel)} linhas "
           f"({painel['sigla_uf'].nunique()} UFs x {painel['ano'].nunique()} anos) "

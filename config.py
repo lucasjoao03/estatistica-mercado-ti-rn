@@ -31,6 +31,13 @@ ANO_FIM = 2023  # RAIS e Censo 2024 já existem; amplie se estiverem disponívei
 
 UF_FOCO = "RN"
 
+# Coluna do INEP usada nos indicadores de formação (concluintes_ti_100k,
+# concluintes_por_100_vinculos, defasagem e crescimento):
+#   "concluintes_ti"            -> todos os cursos (presenciais + EAD)  [padrão]
+#   "concluintes_ti_presencial" -> só cursos presenciais (teste de robustez EAD)
+# `python analise.py --presencial` roda a versão presencial sem alterar este valor.
+COLUNA_FORMACAO = "concluintes_ti"
+
 # ---------------------------------------------------------------------------
 # Base dos Dados / BigQuery
 # ---------------------------------------------------------------------------

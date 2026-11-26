@@ -8,6 +8,7 @@ Gerado por `analise.py`. Segue o fluxo PROBLEMA → DADOS → ANÁLISE ESTATÍST
 - **Período**: 2015 a 2023; **painel**: 27 UFs x 9 anos = 243 observações.
 - **Junção**: chave `sigla_uf + ano` (RAIS x INEP por junção interna, população por junção à esquerda); linhas com UF fora das 27 (ex.: "IGNORADO" na RAIS) são descartadas.
 - **Cortes transversais de referência**: 2015 e 2023 (n = 27 UFs cada).
+- **Formação (concluintes) considerada**: todos os cursos (presencial + EAD).
 
 ## 2. Estatística descritiva
 
@@ -116,6 +117,18 @@ Detalhes: `06_testes_hipotese.csv`, `06b_crescimento_uf_*.csv`, `02_correlacoes.
 - Concluintes de TI: 266 → 840 (216%); empregos formais de TI: 2.661 → 3.795 (43%). Diferença entre os dois crescimentos: 173 p.p., a 2ª maior entre as 27 UFs.
 - Salário médio em TI: R$ 4.660,20 (abaixo de Q1; mediana das UFs R$ 5.678,75).
 - Modelo M1: empregos de TI/100k observados 114,9 x previstos pelo volume de formação 182,1; resíduo -0,461 (≈ -37% em relação ao esperado), o 3º menor de 27 UFs. Resíduo negativo = menos emprego formal do que o esperado para a formação (indício de baixa absorção local).
+
+## 6. Robustez: efeito dos cursos EAD
+
+Os concluintes de cursos EAD são contados na UF registrada no Censo, o que pode inflar a formação de alguns estados. A tabela repete os principais números usando só os cursos presenciais (`python analise.py --presencial` gera a análise completa em `resultados/robustez_presencial/`).
+
+| Medida | todos os cursos (presencial + EAD) | só cursos presenciais |
+|---|---|---|
+| Correlação P1 (2023, Pearson r) | 0,95 (p < 0,001) | 0,90 (p < 0,001) |
+| RN: concluintes por 100 empregos (2023) | 22,1 (mediana 14,4, Q3 16,9) | 10,8 (mediana 6,0, Q3 7,8) |
+| RN: faixa de quartil e posição | acima de Q3 (4º) | acima de Q3 (2º) |
+| RN: crescimento concluintes x vínculos (2015-2023) | 216% x 43% | 63% x 43% |
+| Wilcoxon (H1: concluintes cresceram mais que empregos) | W = 226; p = 0,193; dif. mediana 7,0 p.p. | W = 13; p = 1,000; dif. mediana -72,0 p.p. |
 
 ## Arquivos gerados
 

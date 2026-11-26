@@ -1,0 +1,11 @@
+indicador,variavel,valor_RN_2015,valor_RN_2023,variacao_pct,mediana_UFs_2015,mediana_UFs_2023,faixa_quartil_2015,faixa_quartil_2023,posicao_2015_de_27,posicao_2023_de_27
+Concluintes de TI (nº),concluintes_ti,251.0,410.0,63.35,458.0,410.0,entre Q1 e a mediana,entre a mediana e Q3,20,14
+Empregos formais de TI (nº),vinculos_ti,2661.0,3795.0,42.62,4241.0,6459.0,entre Q1 e a mediana,entre Q1 e a mediana,18,19
+Concluintes de TI por 100 mil hab.,concluintes_ti_100k,7.29,12.41,70.24,11.63,10.54,abaixo de Q1,entre a mediana e Q3,23,9
+Empregos formais de TI por 100 mil hab.,vinculos_ti_100k,77.31,114.9,48.64,98.84,152.62,entre Q1 e a mediana,entre Q1 e a mediana,18,20
+Concluintes por 100 empregos de TI,concluintes_por_100_vinculos,9.43,10.8,14.54,9.81,6.03,entre Q1 e a mediana,acima de Q3,15,2
+Salário médio em TI (R$),salario_medio_ti,3253.73,4660.2,43.23,3739.83,5678.75,abaixo de Q1,abaixo de Q1,22,24
+Salário TI / salário médio geral,salario_relativo_ti,1.6,1.48,-7.8,1.67,1.68,entre Q1 e a mediana,abaixo de Q1,18,22
+% do emprego formal que é TI,participacao_ti_emprego,0.44,0.55,25.38,0.53,0.67,entre Q1 e a mediana,entre Q1 e a mediana,20,18
+% mulheres entre concluintes de TI,pct_fem_concluintes_ti,10.53,13.69,30.06,13.84,14.63,abaixo de Q1,entre Q1 e a mediana,25,20
+% mulheres nos empregos de TI,pct_fem_vinculos_ti,16.42,17.02,3.65,19.48,19.09,abaixo de Q1,abaixo de Q1,24,22
