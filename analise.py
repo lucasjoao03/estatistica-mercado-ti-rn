@@ -132,6 +132,110 @@ def correlacoes(painel: pd.DataFrame, ano: int) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
+# 2b. Testes de hipótese (normalidade, Wilcoxon, Mann-Whitney)
+# ---------------------------------------------------------------------------
+def _decisao(p: float) -> str:
+    return "rejeita H0" if p < 0.05 else "não rejeita H0"
+
+
+def crescimento_uf(painel: pd.DataFrame, ano_ini: int, ano_fim: int) -> pd.DataFrame:
+    """Crescimento % de concluintes e de vínculos de TI de cada UF entre dois anos."""
+    a = descritiva.corte(painel, ano_ini)[["concluintes_ti", "vinculos_ti"]]
+    b = descritiva.corte(painel, ano_fim)[["concluintes_ti", "vinculos_ti"]]
+    c = 100 * (b / a - 1)
+    c.columns = ["cresc_concluintes_pct", "cresc_vinculos_pct"]
+    c["diferenca_pp"] = c["cresc_concluintes_pct"] - c["cresc_vinculos_pct"]
+    return c.dropna()
+
+
+def testes_hipotese(painel: pd.DataFrame, ano_ini: int, ano_fim: int) -> pd.DataFrame:
+    d = descritiva.corte(painel, ano_fim)
+    linhas = []
+
+    # a) Normalidade de cada indicador (Shapiro-Wilk)
+    for col in descritiva.INDICADORES:
+        s = d[col].dropna()
+        w, p = stats.shapiro(s)
+        linhas.append({
+            "teste": f"Shapiro-Wilk: {ROTULOS[col]} ({ano_fim})", "variavel": col,
+            "hipotese_nula": "os valores das UFs vêm de uma distribuição normal",
+            "hipotese_alternativa": "a distribuição não é normal",
+            "estatistica": w, "p_valor": p, "n": len(s), "decisao_5pct": _decisao(p),
+            "interpretacao": ("normalidade rejeitada: preferir mediana e testes não "
+                              "paramétricos" if p < 0.05 else
+                              "sem evidência contra a normalidade"),
+        })
+
+    # b) Wilcoxon pareado: crescimento de concluintes x crescimento de vínculos
+    c = crescimento_uf(painel, ano_ini, ano_fim)
+    c.round(2).to_csv(OUT / f"06b_crescimento_uf_{ano_ini}_{ano_fim}.csv")
+    w = stats.wilcoxon(c["cresc_concluintes_pct"], c["cresc_vinculos_pct"],
+                       alternative="greater")
+    n_maior = int((c["diferenca_pp"] > 0).sum())
+    pos_rn = int(c["diferenca_pp"].rank(ascending=False, method="min").loc[FOCO])
+    conclusao = ("há evidência de que, nas UFs em geral, a formação cresceu mais que o emprego"
+                 if w.pvalue < 0.05 else
+                 "no conjunto das UFs não há evidência de que a formação tenha crescido mais "
+                 "que o emprego")
+    linhas.append({
+        "teste": f"Wilcoxon pareado: crescimento % concluintes x vínculos de TI ({ano_ini}-{ano_fim})",
+        "variavel": "cresc_concluintes_pct - cresc_vinculos_pct",
+        "hipotese_nula": "mediana da diferença (cresc. concluintes - cresc. vínculos) <= 0",
+        "hipotese_alternativa": "os concluintes cresceram mais que os empregos (mediana > 0)",
+        "estatistica": w.statistic, "p_valor": w.pvalue, "n": len(c),
+        "decisao_5pct": _decisao(w.pvalue),
+        "interpretacao": (
+            f"{conclusao}. Mediana do cresc. dos concluintes {br(c['cresc_concluintes_pct'].median())}% x "
+            f"vínculos {br(c['cresc_vinculos_pct'].median())}%; diferença mediana "
+            f"{br(c['diferenca_pp'].median())} p.p.; em {n_maior} de {len(c)} UFs a formação "
+            f"cresceu mais que o emprego. {FOCO}: {br(c.loc[FOCO, 'cresc_concluintes_pct'], 0)}% x "
+            f"{br(c.loc[FOCO, 'cresc_vinculos_pct'], 0)}% (diferença de "
+            f"{br(c.loc[FOCO, 'diferenca_pp'], 0)} p.p., {pos_rn}ª maior entre as UFs)"),
+        "mediana_grupo_1": c["cresc_concluintes_pct"].median(),
+        "mediana_grupo_2": c["cresc_vinculos_pct"].median(),
+        "n_maior": n_maior, "pos_rn": pos_rn,
+        "dif_rn": c.loc[FOCO, "diferenca_pp"],
+    })
+
+    # c) e d) Mann-Whitney: Nordeste x demais UFs
+    ne = d.index.isin(NORDESTE)
+    for col, alt, h1, sentido in [
+        ("concluintes_por_100_vinculos", "greater",
+         "o Nordeste forma mais em relação ao emprego (valores maiores)", "maior"),
+        ("salario_medio_ti", "less", "o Nordeste paga menos em TI (valores menores)", "menor"),
+    ]:
+        g1, g2 = d.loc[ne, col].dropna(), d.loc[~ne, col].dropna()
+        u = stats.mannwhitneyu(g1, g2, alternative=alt)
+        dec = 0 if col == "salario_medio_ti" else 2
+        linhas.append({
+            "teste": f"Mann-Whitney U: {ROTULOS[col]}, Nordeste x demais UFs ({ano_fim})",
+            "variavel": col,
+            "hipotese_nula": "as distribuições do Nordeste e das demais UFs são iguais",
+            "hipotese_alternativa": h1,
+            "estatistica": u.statistic, "p_valor": u.pvalue, "n": len(g1) + len(g2),
+            "decisao_5pct": _decisao(u.pvalue),
+            "interpretacao": (
+                f"mediana Nordeste (n={len(g1)}) {br(g1.median(), dec)} x demais "
+                f"(n={len(g2)}) {br(g2.median(), dec)}; " +
+                (f"há evidência de que o Nordeste tem valores {sentido}es"
+                 if u.pvalue < 0.05 else
+                 f"sem evidência suficiente de que o Nordeste tenha valores {sentido}es")),
+            "mediana_grupo_1": g1.median(), "mediana_grupo_2": g2.median(),
+        })
+
+    tab = pd.DataFrame(linhas)
+    saida = tab.rename(columns={
+        "hipotese_nula": "hipotese_nula_H0", "hipotese_alternativa": "hipotese_alternativa_H1",
+        "decisao_5pct": "decisao_5pct"})
+    saida = saida.drop(columns=["variavel", "mediana_grupo_1", "mediana_grupo_2",
+                                "n_maior", "pos_rn", "dif_rn"])
+    saida["estatistica"] = saida["estatistica"].round(4)
+    saida["p_valor"] = saida["p_valor"].map(lambda v: f"{v:.4g}")
+    saida.to_csv(OUT / "06_testes_hipotese.csv", index=False)
+    return tab
+
+
+# ---------------------------------------------------------------------------
 # 3. Regressões
 # ---------------------------------------------------------------------------
 def regressoes(painel: pd.DataFrame, ano: int) -> dict:
@@ -516,6 +620,7 @@ def main() -> None:
 
     desc = descritiva.executar(painel, config.ANO_INICIO, ano, OUT)
     corr = correlacoes(painel, ano)
+    testes = testes_hipotese(painel, config.ANO_INICIO, ano)
     mods = regressoes(painel, ano)
 
     grafico_evolucao(painel)
